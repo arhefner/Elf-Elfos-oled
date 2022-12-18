@@ -1,6 +1,6 @@
             ; Include kernel API entry points
 
-#include include/opcodes.def
+#include include/macros.inc
 #include include/bios.inc
 #include include/kernel.inc
 #include include/sysconfig.inc

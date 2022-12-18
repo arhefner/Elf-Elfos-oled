@@ -1,4 +1,4 @@
-#include    include/opcodes.def
+#include    include/macros.inc
 #include    include/sysconfig.inc
 #include    oled.inc
 
