@@ -3,26 +3,7 @@
 #include include/macros.inc
 #include include/bios.inc
 #include include/kernel.inc
-#include include/sysconfig.inc
 #include ssd1305_lib.inc
-
-#define  RTC_REG         20h
-
-#define  CLEAR_INT       10h
-
-#define  RATE_64HZ       10h
-#define  RATE_1_PER_SEC  14h
-#define  RATE_1_PER_MIN  18h
-#define  RATE_1_PER_HR   1ch
-
-#define  INT_ENABLE      10h
-#define  INT_MASK        11h
-
-#define  PULSE_MODE      10h
-#define  INT_MODE        12h
-
-#define  RTC_INT_ENABLE  41h
-#define  RTC_INT_DISABLE 40h
 
             extrn   oled_text_draw_string
             extrn   oled_text_set_pos
@@ -31,11 +12,12 @@
             org     2000h
 start:      br      main
 
+
             ; Build information
 
             ever
 
-            db    'See github.com/arhefner/Elfos-clock for more info',0
+            db    'See github.com/arhefner/Elfos-font for more info',0
 
 
             ; Main code starts here, check provided argument
@@ -47,7 +29,7 @@ main:       lda     ra                  ; move past any spaces
             ldn     ra                  ; get byte
             lbnz    arg                 ; jump if argument given
             call    o_inmsg             ; otherwise display usage message
-            db      'Usage: clock fontname',10,13,0
+            db      'Usage: font filename',10,13,0
             rtn                         ; and return to os
 
 arg:        mov     rf, ra              ; copy argument address to rf
@@ -125,13 +107,13 @@ load_font:  mov     rd, termdes         ; copy font pointer to termdes
 
 read:       mov     rd, fildes
             call    o_read
-            lbnf    check
+            lbnf    display
 
             mov     rf, readerr
             call    o_msg
             lbr     done
 
-check:      mov     rd, termdes         ; load font address into rf
+display:    mov     rd, termdes         ; load font address into rf
             inc     rd
             inc     rd
             lda     rd
@@ -141,181 +123,76 @@ check:      mov     rd, termdes         ; load font address into rf
 
             mov     rd, fontsig         ; check font signature
             call    f_strcmp
-            bz      clock
+            bz      print
 
             mov     rf, fonterr
             call    o_msg
-            lbr     done
 
-clock:      mov   r1, introu
+print:      mov     r8, termdes
+            mov     ra, $0800
+            call    oled_text_set_pos
 
-;            ldi   64
-            ldi   1
-            plo   r7
+            mov     ra, message
+            call    oled_text_draw_string
 
-            sex   r3
+time:       mov     rf, time_buf
+            call    f_gettod
 
-          #if RTC_GROUP
-            out   EXP_PORT              ; make sure default expander group
-            db    RTC_GROUP
-          #endif
+            mov     ra, time_buf
+            inc     ra
+            inc     ra
+            inc     ra
 
-            out   RTC_PORT
-            db    RTC_REG | 0eh
-            out   RTC_PORT
-;            db    RATE_64HZ | INT_MODE | INT_ENABLE
-            db    RATE_1_PER_SEC | INT_MODE | INT_ENABLE
+            mov     rf, output
+            ldi     0
+            phi     rd
+            lda     ra
+            plo     rd
+            call    f_uintout
 
-            out   RTC_PORT
-            db    RTC_INT_ENABLE
+            ldi     ':'
+            str     rf
+            inc     rf
 
-          #if RTC_GROUP
-            out   EXP_PORT              ; make sure default expander group
-            db    NO_GROUP
-          #endif
+            ldi     0
+            phi     rd
+            lda     ra
+            plo     rd
+            call    f_uintout
 
-            ret
-            db    23h
+            ldi     ':'
+            str     rf
+            inc     rf
 
-wait:       b4    done
-            glo   r7
-            bnz   wait
+            ldi     0
+            phi     rd
+            lda     ra
+            plo     rd
+            call    f_uintout
 
-;            ldi   64
-            ldi   1
-            plo   r7
+            ldi     0
+            str     rf
 
-            mov   rf, time_buf
-            call  f_gettod
+            mov     r8, termdes
+            mov     ra, $0002
+            call    oled_text_set_pos
 
-            mov   ra, time_buf
-            inc   ra
-            inc   ra
-            inc   ra
+            mov     ra, output
+            call    oled_text_draw_string
 
-            mov   rf, output
-            ldn   ra
-            smi   12
-            lsdf
-            ldn   ra
-            nop
-            str   ra
-            smi   10
-            bdf   hour
-            ldi   '0'
-            str   rf
-            inc   rf
-hour:       ldi   0
-            phi   rd
-            lda   ra
-            plo   rd
-            call  f_uintout
+done:       mov     rd, fildes
+            call    o_close
 
-            ldi   ':'
-            str   rf
-            inc   rf
-
-            ldn   ra
-            smi   10
-            bdf   min
-            ldi   '0'
-            str   rf
-            inc   rf
-min:        ldi   0
-            phi   rd
-            lda   ra
-            plo   rd
-            call  f_uintout
-
-            ldi   ':'
-            str   rf
-            inc   rf
-
-            ldn   ra
-            smi   10
-            bdf   sec
-            ldi   '0'
-            str   rf
-            inc   rf
-sec:        ldi   0
-            phi   rd
-            lda   ra
-            plo   rd
-            call  f_uintout
-
-            ldi   0
-            str   rf
-
-print:      mov   r8, termdes
-            mov   ra, $0002
-            call  oled_text_set_pos
-
-            mov   ra, output
-            call  oled_text_draw_string
-
-            lbr   wait
-
-done:       sex   r3
-            dis
-            db    23h
-
-            sex   r3
-
-          #if RTC_GROUP
-            out   EXP_PORT              ; make sure default expander group
-            db    RTC_GROUP
-          #endif
-
-            out   RTC_PORT
-            db    RTC_INT_DISABLE
-            out   RTC_PORT
-            db    INT_MASK
-            out   RTC_PORT
-            db    CLEAR_INT
-
-          #if RTC_GROUP
-            out   EXP_PORT              ; make sure default expander group
-            db    NO_GROUP
-          #endif
-
-            sex   r2
-
-            mov   rd, fildes
-            call  o_close
-
-            ldi   0
             rtn
-
-
-exiti:      ret
-
-introu:     dec   r2
-            sav
-            dec   r2
-            stxd
-            shrc
-            stxd
-
-            sex   r1
-            out   RTC_PORT
-            db    RTC_REG | 0dh
-            out   RTC_PORT
-            db    CLEAR_INT
-            sex   r2
-
-            dec   r7
-
-exit:       inc   r2
-            lda   r2
-            shl
-            lda   r2
-            br    exiti
 
 fileerr:    db      'File not found.',10,13,0
 seekerr:    db      'Seek error.',13,10,0
 fonterr:    db      'Invalid font file.',13,10,0
 allocerr:   db      'Not enough memory.',13,10,0
 readerr:    db      'Read error.',13,10,0
+disperr:    db      'Error printing.',13,10,0
+
+message:    db      'Hello, world!',0
 
 fontsig:    db      'FON',0
 

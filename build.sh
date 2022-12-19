@@ -12,7 +12,8 @@ asm02 -L -D1802MAX play.asm
 link02 -e play.prg ssd1305_lib.prg
 
 asm02 -L -D1802MAX show.asm
-link02 -e show.prg ssd1305_lib.prg
+asm02 -L pixiecvt.asm
+link02 -e show.prg pixiecvt.prg ssd1305_lib.prg
 
 asm02 -L -D1802MAX clock.asm
 asm02 -L -D1802MAX oled_text.asm

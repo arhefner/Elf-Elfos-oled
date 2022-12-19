@@ -5,9 +5,9 @@
 #define     BYTES_PER_PAGE  8
 #define     PIXELS_PER_BYTE 8
 
-            proc upscale_pixie64x32
+            extrn   dbltbl
 
-            stxd                        ; save D
+            proc upscale_pixie64x32
 
             glo     r8                  ; input buffer must be page-aligned
             lbnz    err
@@ -125,14 +125,15 @@ done:       clc
             lskp
 err:        stc
 
-            irx                         ; restore D
-            ldx
-
             rtn
 
-.align      para
+            endp
 
-dbltbl:     db      $ff, $3f, $cf, $0f
+.link       .align  para
+
+            proc    dbltbl
+
+            db      $ff, $3f, $cf, $0f
             db      $f3, $33, $c3, $03
             db      $fc, $3c, $cc, $0c
             db      $f0, $30, $c0, $00
